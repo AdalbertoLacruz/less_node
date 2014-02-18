@@ -1,6 +1,8 @@
 name: less_node
 version: 0.1.0
-description: less transformer wrapped over nodejs
+author: Adalberto Lacruz <adalberto.lacruz@gmail.com>
+description: Less transformer wrapped over nodejs. Build a .css file from .less files.
+homepage: https://github.com/AdalbertoLacruz/less_node
 dependencies:
   barback: '>=0.9.0 <0.12.0'
 dev_dependencies:
