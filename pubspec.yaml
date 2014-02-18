@@ -1,0 +1,7 @@
+name: less_node
+version: 0.1.0
+description: less transformer wrapped over nodejs
+dependencies:
+  barback: '>=0.9.0 <0.12.0'
+dev_dependencies:
+  unittest: '>=0.9.0 <0.11.0'
