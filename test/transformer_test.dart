@@ -9,7 +9,7 @@ main() {
   Future<bool> isPrimary(String path) {
     var asset = new Asset.fromString(new AssetId('test_package', path), 'test_contents');
     var settings = new BarbackSettings({'entry_point': 'foo.less'}, BarbackMode.DEBUG);
-    return new LessTransformer.asPlugin(settings).isPrimary(asset);
+    return new LessTransformer.asPlugin(settings).isPrimary(asset.id);
   }
 
   group('entry_point', () {
