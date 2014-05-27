@@ -50,19 +50,19 @@ class LessTransformer extends Transformer {
   }
 
   Future apply(Transform transform) {
-    var input = transform.primaryInput;
-    String inputFile = input.id.path;
-    String outputFile = output == '' ? input.id.changeExtension('.css').path : output;
+    var id = transform.primaryInput.id;
+
+    transform.consumePrimary();
+
+    String outputFile = output == '' ? id.changeExtension('.css').path : output;
     flags = [];
     flags.add('--no-color');
     if (cleancss) flags.add('--clean-css');
     if (compress) flags.add('--compress');
-    if (include_path != '') flags.add('--include-path=' + include_path);
-    flags.add(inputFile);
-    flags.add('>');
-    flags.add(outputFile);
+    if (include_path != '') flags.add('--include-path=$include_path');
+    flags.add("-");
 
-    return executeProcess(executable, flags);
+    return executeProcess(executable, flags, transform, outputFile);
   }
 
   /*
@@ -76,11 +76,15 @@ class LessTransformer extends Transformer {
   /*
    * lessc process wrapper
    */
-  Future executeProcess(String executable, List<String>Flags) {
+  Future executeProcess(String executable, List<String>Flags, Transform transform, String outputFile) {
     print('\nless_node> command: $executable ${Flags.join(' ')}');
 
-    return Process.start(executable, flags, runInShell: true).then((process) {
-      stdout.addStream(process.stdout);
+    return Process.start(executable, flags).then((process) {
+      var id = transform.primaryInput.id;
+
+      transform.primaryInput.read().pipe(process.stdin);
+      transform.addOutput(new Asset.fromStream(new AssetId(id.package, outputFile), process.stdout));
+
       stderr.addStream(process.stderr);
 
       return process.exitCode.then((exitCode) {
@@ -106,5 +110,5 @@ class LessException implements Exception {
 
   LessException(this.message);
 
-  String toString() => '\n' + message;
+  String toString() => '\n$message';
 }
