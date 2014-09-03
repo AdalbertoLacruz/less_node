@@ -1,6 +1,7 @@
 ## Less integration for pub
 
-[Less](http://lesscss.org/)-transformer for [pub-build](http://pub.dartlang.org/doc/pub-build.html).
+[Less](http://lesscss.org/)-transformer for [pub-serve](http://pub.dartlang.org/doc/pub-serve.html) and 
+[pub-build](http://pub.dartlang.org/doc/pub-build.html).
 
 ## Usage
 
@@ -23,10 +24,23 @@ You can also pass options to Lessc if necessary:
 
     transformers:
       - less_node:
-          executable: /path/to/lessc
           entry_point: path/to/builder.less
           output: /path/to/builded.css
           include_path: /path/to/directory/for/less/includes
           cleancss: true or false
           compress: true or false
-
+          executable: /path/to/lessc
+          build_mode: less, dart or mixed
+          run_in_shell: true or false
+          
+entry_point - Is the ONLY option required. Normally is a builder file with "@import 'filexx.less'; ..." directives.
+output - Is the .css file generated. If not supplied then entry_point with .css extension is used.
+include_path - see [Less Documentation include_path](http://lesscss.org/usage/#command-line-usage-include-paths).
+cleancss - see [Less Documentation clean-css](http://lesscss.org/usage/#command-line-usage-clean-css).
+compress - see [Less Documentation compress](http://lesscss.org/usage/#command-line-usage-compress).
+executable - by default 'lessc' as node npm work result
+build_mode -
+	less - command 'CMD> lessc --flags input.less > output.css' is used
+	dart - command 'CMD> lessc --flags -' with stdin and stdout piped in the dart transformer process.
+	mixed - command 'CMD> lessc --flags input.less' with stdout managed by the dart transformer process.
+run_in_shell - in windows lessc.cmd needs a shell, so run_in_shell default is true for this platform.
