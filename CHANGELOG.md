@@ -1,3 +1,7 @@
+# v0.2.0 (2014-09-05)
+
+- entry_points. Multiple .less files to be processed
+
 # v0.1.3 (2014-09-03)
 
 - build_mode and run_in_shell options

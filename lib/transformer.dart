@@ -3,6 +3,7 @@
  * Thanks to juha.komulainen@evident.fi for inspiration and some code
  * (Copyright (c) 2013 Evident Solutions Oy) from package http://pub.dartlang.org/packages/sass
  *
+ * v 0.2.0  20140905 entry_point(s) multifile
  * v 0.1.3  20140903 build_mode, run_in_shell, options, time
  * v 0.1.2  20140527 use stdout instead of '>'; beatgammit@gmail.com
  * v 0.1.1  20140521 compatibility with barback (0.13.0) and lessc (1.7.0);
@@ -25,8 +26,8 @@ const String BUILD_MODE_MIXED = 'mixed';
  * Transformer used by 'pub build' & 'pub serve' to convert .less files to .css
  * Based on lessc over nodejs executing a process like
  * CMD> lessc --flags input.less > output.css
- * It Use only one file as entry point and produces only one css file
- * To mix several .less files, the input contents could be "@import 'filexx.less'; ..." directives
+ * It use one or various files as entry point and produces the css files
+ * To mix several .less files in one, the input contents could be "@import 'filexx.less'; ..." directives
  * See http://lesscss.org/ for more information
  */
 class LessTransformer extends Transformer {
@@ -39,9 +40,7 @@ class LessTransformer extends Transformer {
 
   LessTransformer(BarbackSettings settings):
     settings = settings,
-    options = new TransformerOptions.parse(settings.configuration) {
-      if(options.entry_point == '') print('$INFO_TEXT No entry_point supplied!');
-  }
+    options = new TransformerOptions.parse(settings.configuration);
 
   LessTransformer.asPlugin(BarbackSettings settings):
     this(settings);
@@ -54,7 +53,7 @@ class LessTransformer extends Transformer {
     List<String> flags = _createFlags();  //to build process arguments
     var id = transform.primaryInput.id;
     String inputFile = id.path;
-    String outputFile = options.output == '' ? id.changeExtension('.css').path : options.output;
+    String outputFile = getOutputFileName(id);
 
     switch (options.build_mode) {
       case BUILD_MODE_DART:
@@ -69,13 +68,15 @@ class LessTransformer extends Transformer {
         flags.add('>');
         flags.add(outputFile);
     }
-    print('$INFO_TEXT command: ${options.executable} ${flags.join(' ')}');
-    if (isBuildModeDart) print('$INFO_TEXT input File: $inputFile');
-    if (isBuildModeMixed || isBuildModeDart) print('$INFO_TEXT outputFile: $outputFile');
+    
+    ProcessInfo processInfo = new ProcessInfo(options.executable, flags);
+    if (isBuildModeDart) processInfo.inputFile = inputFile;
+    if (isBuildModeMixed || isBuildModeDart) processInfo.outputFile = outputFile;
     
     return transform.primaryInput.readAsString().then((content){
       transform.consumePrimary();
-      return executeProcess(options.executable, flags, content).then((output) {
+      return executeProcess(options.executable, flags, content, processInfo).then((output) {
+        
         if (isBuildModeMixed || isBuildModeDart){
           transform.addOutput(new Asset.fromString(new AssetId(id.package, outputFile), output));
         }
@@ -84,13 +85,13 @@ class LessTransformer extends Transformer {
   }
 
   /*
-   * only returns true in entry_point file
+   * only returns true in entry_point(s) file
    */
   bool _isEntryPoint(AssetId id) {
     if (id.extension != '.less') return false;
-    return options.entry_point == id.path;
+    return (options.entry_points.contains(id.path));
   }
-  
+    
   List<String> _createFlags(){
     List<String> flags = [];
     
@@ -101,19 +102,27 @@ class LessTransformer extends Transformer {
     
     return flags;
   }
+  
+  String getOutputFileName(id) {
+    if(options.entry_points.length > 1 || options.output == '') {
+      return id.changeExtension('.css').path;
+    }
+    return options.output;
+  }
 
   /*
    * lessc process wrapper
    */
-  Future executeProcess(String executable, List<String> flags, String content) {
+  Future executeProcess(String executable, List<String> flags, String content, ProcessInfo processInfo) {
     final _timeInProcess = new Stopwatch();
 
     return Process.start(executable, flags, runInShell: options.run_in_shell).then((Process process) {
       _timeInProcess.start();
 
       StringBuffer output = new StringBuffer();
+      StringBuffer errors = new StringBuffer();
       process.stdout.transform(new Utf8DecoderTransformer()).listen((str) => output.write(str));
-      stderr.addStream(process.stderr);
+      process.stderr.transform(new Utf8DecoderTransformer()).listen((str) => errors.write(str));
 
       if (isBuildModeDart) {
         process.stdin.write(content);
@@ -123,10 +132,10 @@ class LessTransformer extends Transformer {
       return process.exitCode.then((exitCode) {
         _timeInProcess.stop();
         if (exitCode == 0) {
-          print ('$INFO_TEXT $executable process completed in ${utils.niceDuration(_timeInProcess.elapsed)}');
+          processInfo.nicePrint(_timeInProcess.elapsed);
           return output.toString();
         } else {
-          throw new LessException(stderr.toString());
+          throw new LessException(errors.toString());
         }
       });
 
@@ -135,9 +144,9 @@ class LessTransformer extends Transformer {
     }, test: (e) => e is ProcessException);
   }
 }
-
+/* ************************************** */
 class TransformerOptions {
-  final String entry_point;  // entry_point: web/builder.less - main file to build
+  final List<String> entry_points;  // entry_point: web/builder.less - main file to build or [file1.less, ...,fileN.less]
   final String include_path; // include_path: /lib/lessIncludes - variable and mixims files
   final String output;       // output: web/output.css - result file. If '' same as web/input.css
   final bool cleancss;       // cleancss: true - compress output by using clean-css
@@ -147,7 +156,7 @@ class TransformerOptions {
   final String build_mode;   // build_mode: less - io managed by lessc compiler (less) by (dart) or (mixed)
   final bool run_in_shell;   // run_in_shell: true - in windows less.cmd needs a shell to run
 
-  TransformerOptions({String this.entry_point, String this.include_path, String this.output, bool this.cleancss, bool this.compress,
+  TransformerOptions({List<String> this.entry_points, String this.include_path, String this.output, bool this.cleancss, bool this.compress,
     String this.executable, String this.build_mode, bool this.run_in_shell});
 
   factory TransformerOptions.parse(Map configuration){
@@ -156,9 +165,29 @@ class TransformerOptions {
       var value = configuration[key];
       return value != null ? value : defaultValue;
     }
+    
+    List<String> readStringList(value) {
+      if (value is List<String>) return value;
+      if (value is String) return [value];
+      return null;
+    }
+    
+    List<String> readEntryPoints(entryPoint, entryPoints) {
+      List<String> result = [];
+      List<String> value;
+      
+      value = readStringList(entryPoint);
+      if (value != null) result.addAll(value);
+      
+      value = readStringList(entryPoints);
+      if (value != null) result.addAll(value);
+      
+      if (result.length < 1) print('$INFO_TEXT No entry_point supplied!');
+      return result;
+    }
 
     return new TransformerOptions (
-        entry_point: config('entry_point', ''),
+        entry_points: readEntryPoints(configuration['entry_point'], configuration['entry_points']),
         include_path: config('include_path', ''),
         output: config('output', ''),
         cleancss: config('cleancss', false),
@@ -170,6 +199,22 @@ class TransformerOptions {
     );
   }
 }
+/* ************************************** */
+class ProcessInfo {
+  String executable;
+  List<String> flags;
+  String inputFile = '';
+  String outputFile = '';
+  
+  ProcessInfo(this.executable, this.flags);
+  
+  nicePrint(Duration elapsed){
+    print('$INFO_TEXT command: $executable ${flags.join(' ')}');
+    if (inputFile  != '') print('$INFO_TEXT input File: $inputFile');
+    if (outputFile != '') print('$INFO_TEXT outputFile: $outputFile');
+    print ('$INFO_TEXT $executable process completed in ${utils.niceDuration(elapsed)}');
+    }
+  }
 
 /* ************************************** */
 /*
