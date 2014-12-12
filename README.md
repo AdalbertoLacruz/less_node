@@ -34,6 +34,8 @@ You can also pass options to Lessc if necessary:
           executable: /path/to/lessc
           build_mode: less, dart or mixed
           run_in_shell: true or false
+          other_flags:
+            - to include in the lessc command line
           
 - entry_point - Is the ONLY option required. Normally is a builder file with "@import 'filexx.less'; ..." directives.
 - entry_points - Alternative to entry_point. Let process several .less input files.
@@ -48,3 +50,4 @@ You can also pass options to Lessc if necessary:
 	- dart - command 'CMD> lessc --flags -' with stdin and stdout piped in the dart transformer process. See build folder.
 	- mixed - command 'CMD> lessc --flags input.less' with stdout managed by the dart transformer process. See build folder.
 - run_in_shell - in windows lessc.cmd needs a shell, so run_in_shell default is true for this platform.
+- other_flags - Let add other flags such as (-line-numbers=comments, ...) in the lessc command line.

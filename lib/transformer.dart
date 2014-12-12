@@ -3,6 +3,7 @@
  * Thanks to juha.komulainen@evident.fi for inspiration and some code
  * (Copyright (c) 2013 Evident Solutions Oy) from package http://pub.dartlang.org/packages/sass
  *
+ * v 0.2.1  20141212 niceDuration, other_flags argument
  * v 0.2.0  20140905 entry_point(s) multifile
  * v 0.1.3  20140903 build_mode, run_in_shell, options, time
  * v 0.1.2  20140527 use stdout instead of '>'; beatgammit@gmail.com
@@ -14,7 +15,7 @@ library less.transformer;
 import 'dart:async';
 import 'dart:io';
 import 'package:barback/barback.dart';
-import 'package:barback/src/utils.dart' as utils;
+//import 'package:barback/src/utils.dart' as utils;
 import 'package:utf/utf.dart';
 
 const String INFO_TEXT = '[Info from less-node]';
@@ -68,15 +69,15 @@ class LessTransformer extends Transformer {
         flags.add('>');
         flags.add(outputFile);
     }
-    
+
     ProcessInfo processInfo = new ProcessInfo(options.executable, flags);
     if (isBuildModeDart) processInfo.inputFile = inputFile;
     if (isBuildModeMixed || isBuildModeDart) processInfo.outputFile = outputFile;
-    
+
     return transform.primaryInput.readAsString().then((content){
       transform.consumePrimary();
       return executeProcess(options.executable, flags, content, processInfo).then((output) {
-        
+
         if (isBuildModeMixed || isBuildModeDart){
           transform.addOutput(new Asset.fromString(new AssetId(id.package, outputFile), output));
         }
@@ -91,18 +92,19 @@ class LessTransformer extends Transformer {
     if (id.extension != '.less') return false;
     return (options.entry_points.contains(id.path));
   }
-    
+
   List<String> _createFlags(){
     List<String> flags = [];
-    
+
     flags.add('--no-color');
     if (options.cleancss) flags.add('--clean-css');
     if (options.compress) flags.add('--compress');
     if (options.include_path != '') flags.add('--include-path=${options.include_path}');
-    
+    if (options.other_flags != null) flags.addAll(options.other_flags);
+
     return flags;
   }
-  
+
   String getOutputFileName(id) {
     if(options.entry_points.length > 1 || options.output == '') {
       return id.changeExtension('.css').path;
@@ -155,9 +157,10 @@ class TransformerOptions {
   final String executable;   // executable: lessc - command to execute lessc
   final String build_mode;   // build_mode: less - io managed by lessc compiler (less) by (dart) or (mixed)
   final bool run_in_shell;   // run_in_shell: true - in windows less.cmd needs a shell to run
+  final List other_flags;    // other options in the command line
 
   TransformerOptions({List<String> this.entry_points, String this.include_path, String this.output, bool this.cleancss, bool this.compress,
-    String this.executable, String this.build_mode, bool this.run_in_shell});
+    String this.executable, String this.build_mode, bool this.run_in_shell, List this.other_flags});
 
   factory TransformerOptions.parse(Map configuration){
 
@@ -165,23 +168,23 @@ class TransformerOptions {
       var value = configuration[key];
       return value != null ? value : defaultValue;
     }
-    
+
     List<String> readStringList(value) {
       if (value is List<String>) return value;
       if (value is String) return [value];
       return null;
     }
-    
+
     List<String> readEntryPoints(entryPoint, entryPoints) {
       List<String> result = [];
       List<String> value;
-      
+
       value = readStringList(entryPoint);
       if (value != null) result.addAll(value);
-      
+
       value = readStringList(entryPoints);
       if (value != null) result.addAll(value);
-      
+
       if (result.length < 1) print('$INFO_TEXT No entry_point supplied!');
       return result;
     }
@@ -195,7 +198,8 @@ class TransformerOptions {
 
         executable: config('executable', 'lessc'),
         build_mode: config('build_mode', BUILD_MODE_LESS),
-        run_in_shell: config('run_in_shell', Platform.isWindows)
+        run_in_shell: config('run_in_shell', Platform.isWindows),
+        other_flags: readStringList(configuration['other_flags'])
     );
   }
 }
@@ -205,16 +209,26 @@ class ProcessInfo {
   List<String> flags;
   String inputFile = '';
   String outputFile = '';
-  
+
   ProcessInfo(this.executable, this.flags);
-  
+
   nicePrint(Duration elapsed){
     print('$INFO_TEXT command: $executable ${flags.join(' ')}');
     if (inputFile  != '') print('$INFO_TEXT input File: $inputFile');
     if (outputFile != '') print('$INFO_TEXT outputFile: $outputFile');
-    print ('$INFO_TEXT $executable process completed in ${utils.niceDuration(elapsed)}');
-    }
+    print ('$INFO_TEXT $executable process completed in ${niceDuration(elapsed)}');
   }
+
+  /// Returns a human-friendly representation of [duration].
+  //from barback - Copyright (c) 2013, the Dart project authors
+  String niceDuration(Duration duration) {
+  var result = duration.inMinutes > 0 ? "${duration.inMinutes}:" : "";
+
+  var s = duration.inSeconds % 59;
+  var ms = (duration.inMilliseconds % 1000) ~/ 100;
+  return result + "$s.${ms}s";
+  }
+}
 
 /* ************************************** */
 /*
