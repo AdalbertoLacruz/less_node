@@ -14,7 +14,6 @@ library less.transformer;
 import 'dart:async';
 import 'dart:io';
 import 'package:barback/barback.dart';
-import 'package:barback/src/utils.dart' as utils;
 import 'package:utf/utf.dart';
 
 const String INFO_TEXT = '[Info from less-node]';
@@ -212,7 +211,7 @@ class ProcessInfo {
     print('$INFO_TEXT command: $executable ${flags.join(' ')}');
     if (inputFile  != '') print('$INFO_TEXT input File: $inputFile');
     if (outputFile != '') print('$INFO_TEXT outputFile: $outputFile');
-    print ('$INFO_TEXT $executable process completed in ${utils.niceDuration(elapsed)}');
+    print ('$INFO_TEXT $executable process completed in $elapsed');
     }
   }
 
